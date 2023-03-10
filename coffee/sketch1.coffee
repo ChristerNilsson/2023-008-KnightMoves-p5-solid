@@ -11,18 +11,15 @@ N = 8
 r = (i) => i // N
 c = (i) => i % N
 NOQUEENS = [3,4,10,13,17,18,19,20,21,22,24,26,29,31,32,34,37,39,41,42,43,44,45,46,50,53,59,60]
-acc =0
 
 class Board
-	constructor : -> @values = _.map range(N*N), (i) => {i, ri:r(i), ci:c(i)}
+	constructor : -> @values = _.map range(N*N), (i) => {ri:r(i), ci:c(i)}
 	draw : =>
-		for {i,ri,ci} in @values
+		for {ri,ci} in @values
 			fill if (ri+ci) % 2 then 'darkgray' else 'lightgray'
 			rect S*ci, S*ri, S, S
 
-class Count
-	constructor : -> @value = 0
-	update : => @value++
+drawText = (txt,ix) => text txt, S/2+S*c(ix), S/2+S*r(ix)+0.1*S
 
 class Counts
 	constructor : -> @values = []
@@ -30,19 +27,16 @@ class Counts
 		fill 'black'
 		textSize 0.5*S
 		for i in range @values.length
-			ix = Z.targets.values[i]
-			col = c ix
-			row = r ix
-			text @values[i], S/2+S*col, S/2+S*row+0.05*S
+			drawText @values[i], Z.targets.values[i]
 	update : =>
-		@values.push Z.count.value + 1
-		Z.count = new Count
+		@values.push Z.count + 1
+		Z.count = 0
 
 class Knight
 	constructor : (@value) ->
 	draw : =>
 		fill 'black'
-		text '♘', S/2+S*c(@value), S/2+S*r(@value)+0.1*S
+		drawText '♘', @value
 
 class KnightHops
 	constructor :  ->
@@ -72,36 +66,35 @@ class KnightHops
 				if index == Z.target.value
 					Z.counts.update()
 					Z.target.update Z.targets.values[Z.counts.values.length+1]
-					if Z.counts.values.length == Z.targets.values.length-1 then Z.state = new State 2
+					if Z.counts.values.length == Z.targets.values.length-1 then Z.state = 2
 				else
-					Z.count.update()
+					Z.count++
 
 class Queen
-	constructor : (@value) -> 
+	constructor : (@value) ->
 	draw : =>
 		fill 'black'
-		text '♛', S/2+S*c(@value), S/2+S*r(@value)+0.1*S
-	click : => if inside @value then Z.state = new State 0
+		drawText '♛', @value
+	click : => if inside @value then Z.state = 0
 
 class Queens
-	constructor : -> @values = _.filter range(N*N), (i) -> not NOQUEENS.includes i
+	constructor : -> @values = _.filter range(N*N), (i) -> i not in NOQUEENS
 	draw : =>
 		fill 'black'
 		for i in @values
-			text '♛', S/2+S*c(i), S/2+S*r(i)+0.1*S
+			drawText '♛', i
 	click : =>
 		for index in @values
 			if inside index
-				Z.count = new Count
+				Z.count = 0
 				Z.counts = new Counts
 				Z.queen = new Queen index
 				Z.queenHops = new QueenHops
 				Z.targets  = new Targets
 				Z.knight = new Knight Z.targets.values[Z.counts.values.length]
-
 				Z.target = new Target Z.targets.values[Z.counts.values.length+1]
 				Z.knightHops = new KnightHops
-				Z.state = new State 1
+				Z.state = 1
 
 class QueenHops
 	constructor : ->
@@ -119,9 +112,6 @@ class QueenHops
 		fill 'black'
 		for i in @values
 			if i != @queen then circle S/2+S*c(i), S/2+S*r(i), S/4
-
-class State
-	constructor : (@value) ->
 
 class Target
 	constructor : (@value) ->
@@ -142,33 +132,30 @@ inside = (index) ->
 	ri = r index
 	S*ci < mouseX < S*ci+S and S*ri < mouseY < S*ri+S
 
-Z = {}
-Z.count = new Count
+Z = {} # object to hold global variables.
+Z.state = 0
+Z.count = 0 #new Count
 Z.counts = new Counts
-Z.state = new State 0
 Z.board =  new Board
 Z.queen = new Queen 0
 Z.queens = new Queens
 Z.queenHops = new QueenHops
 Z.targets = new Targets
+Z.knight = new Knight Z.targets.values[0]
 Z.target = new Target Z.targets.values[1]
-Z.knight = new Knight 34
 Z.knightHops = new KnightHops
 
 rita = =>
 	background 'gray'
-	textSize 50
-	if Z.state.value==0 then ops = "board,queens".split ','
-	if Z.state.value==1 then ops = "board,queen,queenHops,knight,target,counts,knightHops".split ','
-	if Z.state.value==2 then ops = "board,queen,queenHops,knight,counts".split ','
-	Z[op].draw() for op in ops
+	textSize S
+	if Z.state==0 then ops = "board,queens"
+	if Z.state==1 then ops = "board,queen,queenHops,knight,target,counts,knightHops"
+	if Z.state==2 then ops = "board,queen,queenHops,knight,counts"
+	Z[op].draw() for op in ops.split ','
 
 window.mousePressed = =>
-	start = new Date()
-	Z["queens,knightHops,queen".split(',')[Z.state.value]].click()
+	Z["queens,knightHops,queen".split(',')[Z.state]].click()
 	rita()
-	acc += new Date()-start
-	log acc
 
 window.setup = =>
 	createCanvas innerWidth, innerHeight
