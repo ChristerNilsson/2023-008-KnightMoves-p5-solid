@@ -13,27 +13,42 @@ c = (i) => i % N
 NOQUEENS = [3,4,10,13,17,18,19,20,21,22,24,26,29,31,32,34,37,39,41,42,43,44,45,46,50,53,59,60]
 
 class Board
-	constructor : ->
-		@lst = _.map range(N*N), (i) => {i, ri:r(i), ci:c(i)}
-		log {Board:@lst}
+	constructor : -> @values = _.map range(N*N), (i) => {i, ri:r(i), ci:c(i)}
 	draw : =>
-		for {i,ri,ci} in @lst
+		for {i,ri,ci} in @values
 			fill if (ri+ci) % 2 then 'darkgray' else 'lightgray'
 			rect S*ci, S*ri, S, S
 
-class Knight
-	constructor : (@index) -> 
-		log {Knight:@index}
+class Count
+	constructor : -> @value = 0
+	update : => @value++
+
+class Counts
+	constructor : -> @values = []
 	draw : =>
 		fill 'black'
-		text '♘', S/2+S*c(@index), S/2+S*r(@index)+0.1*S
+		textSize 0.5*S
+		for i in range @values.length
+			ix = targets().values[i]
+			col = c ix
+			row = r ix
+			text @values[i], S/2+S*col, S/2+S*row+0.05*S
+	update : =>
+		@values.push count().value + 1
+		setCount new Count
+
+class Knight
+	constructor : (@value) ->
+	draw : =>
+		fill 'black'
+		text '♘', S/2+S*c(@value), S/2+S*r(@value)+0.1*S
 
 class KnightHops
 	constructor :  ->
-		k = knight().index
-		ts = targets().lst
+		k = knight().value
+		ts = targets().values
 		if k==-1 then return []
-		@lst = []
+		@values = []
 		col = c k
 		row = r k
 		for dc in [-2,-1,1,2]
@@ -42,48 +57,53 @@ class KnightHops
 				c2 = col + dc
 				r2 = row + dr
 				index = c2+N*r2
-				if c2 in range(N) and r2 in range(N) and index in ts then @lst.push index
-		@lst.sort (a,b) -> a-b
-		log {KnightHops:@lst}
+				if c2 in range(N) and r2 in range(N) and index in ts then @values.push index
+		@values.sort (a,b) -> a-b
 	draw : =>
 		fill 'white'
-		for i in @lst
+		for i in @values
 			circle S/2+S*c(i), S/2+S*r(i), S/4
 	click : =>
-		for index in @lst
+		for index in @values
 			if inside index
 				setKnight new Knight index
 				setKnightHops new KnightHops
-				setState 1
+				if index == target().value
+					counts().update()
+					target().update targets().values[counts().values.length+1]
+					if counts().values.length == targets().values.length-1 then setState new State 2
+				else
+					count().update()
 
 class Queen
-	constructor : (@index) -> log {Queen:@index}
+	constructor : (@value) -> 
 	draw : =>
 		fill 'black'
-		text '♛', S/2+S*c(@index), S/2+S*r(@index)+0.1*S
-	click : => if inside @index then setState 0
+		text '♛', S/2+S*c(@value), S/2+S*r(@value)+0.1*S
+	click : => if inside @value then setState new State 0
 
 class Queens
-	constructor : ->
-		@lst = _.filter range(N*N), (i) -> not NOQUEENS.includes i
-		log {Queens:@lst}
+	constructor : -> @values = _.filter range(N*N), (i) -> not NOQUEENS.includes i
 	draw : =>
 		fill 'black'
-		for i in @lst
+		for i in @values
 			text '♛', S/2+S*c(i), S/2+S*r(i)
 	click : =>
-		for index in @lst
+		for index in @values
 			if inside index
+				setCount new Count
+				setCounts new Counts
 				setQueen new Queen index
 				setQueenHops new QueenHops
 				setTargets new Targets
-				setKnight new Knight targets().lst[0]
+				setKnight new Knight targets().values[counts().values.length]
+				setTarget new Target targets().values[counts().values.length+1]
 				setKnightHops new KnightHops
-				setState 1
+				setState new State 1
 
 class QueenHops
 	constructor : ->
-		@queen =  queen().index
+		@queen =  queen().value
 		f = (i) =>
 			ci = c i
 			ri = r i
@@ -92,52 +112,56 @@ class QueenHops
 			ci == @cq or ri == @rq or dc == dr
 		@cq = c @queen
 		@rq = r @queen
-		@lst = _.filter range(N*N), f
-		log {QueenHops:@queen,@lst}
+		@values = _.filter range(N*N), f
 	draw: =>
 		fill 'black'
-		for i in @lst
+		for i in @values
 			if i != @queen then circle S/2+S*c(i), S/2+S*r(i), S/4 #, S/2
 
-class Targets
-	constructor : ->
-		qhs = queenHops().lst
-		@lst = range(N*N).filter (i) => not qhs.includes i
-		log {Targets:@lst}
+class State
+	constructor : (@value) ->
 
 class Target
-	constructor : (@index) -> log {Target:@index}
+	constructor : (@value) ->
 	draw : =>
-		fill 'yellow'
-		circle S/2+S*c(@index), S/2+S*r(@index), S/4
-	click : => if inside @index then setState 0
+		push()
+		stroke 'yellow'
+		strokeWeight 3
+		noFill()
+		circle S/2+S*c(@value), S/2+S*r(@value), S/2
+		pop()
+	update : () => @value = targets().values[counts().values.length+1]
+
+class Targets
+	constructor : -> @values = range(N*N).filter (i) => i not in queenHops().values
 
 inside = (index) ->
 	ci = c index
 	ri = r index
 	S*ci < mouseX < S*ci+S and S*ri < mouseY < S*ri+S
 
-# [count,setCount] = signal 0
-[state, setState] = signal 2
+[count,setCount] = signal new Count
+[counts,setCounts] = signal new Counts
+[state, setState] = signal new State 0
 [board, setBoard] = signal new Board
 [queen, setQueen] = signal new Queen 0
 [queens, setQueens] = signal new Queens
 [queenHops, setQueenHops] = signal new QueenHops
 [targets, setTargets] = signal new Targets
-[target, setTarget] = signal new Target targets().lst[0]
+[target, setTarget] = signal new Target targets().values[1]
 [knight, setKnight] = signal new Knight 34
 [knightHops, setKnightHops] = signal new KnightHops
 
 rita = =>
 	background 'gray'
 	textSize 50
-	if state()==0 then ops = [board,queens]
-	if state()==1 then ops = [board,queen,queenHops,knight,knightHops,target]
-	if state()==2 then ops = [board,queen,queenHops]
+	if state().value==0 then ops = [board,queens]
+	if state().value==1 then ops = [board,queen,queenHops,knight,target,counts,knightHops]
+	if state().value==2 then ops = [board,queen,queenHops,knight,counts]
 	op().draw() for op in ops
 
 window.mousePressed = =>
-	[queens,knightHops,queen][state()]().click()
+	[queens,knightHops,queen][state().value]().click()
 	rita()
 
 window.setup = =>
