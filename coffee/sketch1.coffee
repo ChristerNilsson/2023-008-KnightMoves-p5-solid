@@ -1,25 +1,41 @@
-# p5 
-# solid
-
-# Använd solid för att hålla datastrukturen uppdaterad.
-# Använd p5 för att rita upp den.
-
 import {log,range} from '../js/utils.js'
 
 S = 50
 N = 8
+NOQUEENS = [3,4,10,13,17,18,19,20,21,22,24,26,29,31,32,34,37,39,41,42,43,44,45,46,50,53,59,60]
+mx = S
+my = S/2
+os = if navigator.userAgent.includes 'Windows' then 'Windows' else 'Mac'
+audio = new Audio 'shortclick.mp3'
+
 r = (i) => i // N
 c = (i) => i % N
-NOQUEENS = [3,4,10,13,17,18,19,20,21,22,24,26,29,31,32,34,37,39,41,42,43,44,45,46,50,53,59,60]
+sum = (arr)	=> arr.reduce(((a, b) => a + b), 0)
 
 class Board
 	constructor : -> @values = _.map range(N*N), (i) => {ri:r(i), ci:c(i)}
 	draw : =>
 		for {ri,ci} in @values
 			fill if (ri+ci) % 2 then 'darkgray' else 'lightgray'
-			rect S*ci, S*ri, S, S
+			rect mx+S*ci, my+S*ri, S, S
+			fill 'black'
+			textSize 0.5*S
+		for i in range N
+			text "abcdefgh"[i], mx+S/2+S*i, my+8.5*S
+			text "87654321"[i], mx-S/2, my+S/2+S*i
 
-drawText = (txt,ix) => text txt, S/2+S*c(ix), S/2+S*r(ix)+0.1*S
+window.onresize = -> 
+	H = min(innerHeight//10,innerWidth//10)
+	W = H
+	S = W
+	mx = (innerWidth - 8*S)/2
+	my = S/2
+	resizeCanvas innerWidth, innerHeight
+	rita()
+
+drawText = (txt,ix) => 
+	dy = if os=='Windows' then 0.1*S else 0.0*S
+	text txt, mx+S/2+S*c(ix), my+S/2+S*r(ix)+dy
 
 class Counts
 	constructor : -> @values = []
@@ -28,6 +44,7 @@ class Counts
 		textSize 0.5*S
 		for i in range @values.length
 			drawText @values[i], Z.targets.values[i]
+		text sum(@values)+" moves in #{(new Date - Z.start)/1000} seconds", mx+4*S, my+9.25*S
 	update : =>
 		@values.push Z.count + 1
 		Z.count = 0
@@ -36,6 +53,7 @@ class Knight
 	constructor : (@value) ->
 	draw : =>
 		fill 'black'
+		textSize S
 		drawText '♘', @value
 
 class KnightHops
@@ -55,12 +73,15 @@ class KnightHops
 				if c2 in range(N) and r2 in range(N) and index in ts then @values.push index
 		@values.sort (a,b) -> a-b
 	draw : =>
+		col = c Z.queen.value
+		if col%2==1 then return
 		fill 'white'
 		for i in @values
-			circle S/2+S*c(i), S/2+S*r(i), S/4
+			circle mx+S/2+S*c(i), my+S/2+S*r(i), S/4
 	click : =>
 		for index in @values
 			if inside index
+				audio.play()
 				Z.knight = new Knight index
 				Z.knightHops = new KnightHops
 				if index == Z.target.value
@@ -74,6 +95,7 @@ class Queen
 	constructor : (@value) ->
 	draw : =>
 		fill 'black'
+		textSize S
 		drawText '♛', @value
 	click : => if inside @value then Z.state = 0
 
@@ -81,6 +103,7 @@ class Queens
 	constructor : -> @values = _.filter range(N*N), (i) -> i not in NOQUEENS
 	draw : =>
 		fill 'black'
+		textSize S
 		for i in @values
 			drawText '♛', i
 	click : =>
@@ -95,6 +118,7 @@ class Queens
 				Z.target = new Target Z.targets.values[Z.counts.values.length+1]
 				Z.knightHops = new KnightHops
 				Z.state = 1
+				Z.start = new Date
 
 class QueenHops
 	constructor : ->
@@ -109,9 +133,11 @@ class QueenHops
 		@rq = r @queen
 		@values = _.filter range(N*N), f
 	draw: =>
+		row = r Z.queen.value
+		if row%2==0 then return
 		fill 'black'
 		for i in @values
-			if i != @queen then circle S/2+S*c(i), S/2+S*r(i), S/4
+			if i != @queen then circle mx+S/2+S*c(i), my+S/2+S*r(i), S/4
 
 class Target
 	constructor : (@value) ->
@@ -120,7 +146,7 @@ class Target
 		stroke 'yellow'
 		strokeWeight 3
 		noFill()
-		circle S/2+S*c(@value), S/2+S*r(@value), S/2
+		circle mx+S/2+S*c(@value), my+S/2+S*r(@value), S/2
 		pop()
 	update : () => @value = Z.targets.values[Z.counts.values.length+1]
 
@@ -130,7 +156,7 @@ class Targets
 inside = (index) ->
 	ci = c index
 	ri = r index
-	S*ci < mouseX < S*ci+S and S*ri < mouseY < S*ri+S
+	S*ci < mouseX-mx < S*ci+S and S*ri < mouseY-my < S*ri+S
 
 Z = {} # object to hold global variables.
 Z.state = 0
@@ -170,7 +196,6 @@ window.setup = =>
 # logg navigator.userAgent
 # os = if navigator.userAgent.includes 'Windows' then 'Windows' else 'Mac'
 
-# audio = new Audio 'shortclick.mp3'
 
 # intro = ["Select a queen"]
 
