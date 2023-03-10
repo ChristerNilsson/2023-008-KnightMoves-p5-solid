@@ -4,7 +4,7 @@
 # Använd solid för att hålla datastrukturen uppdaterad.
 # Använd p5 för att rita upp den.
 
-import {log,range,signal} from '../js/utils.js'
+import {log,range} from '../js/utils.js'
 
 S = 50
 N = 8
@@ -30,13 +30,13 @@ class Counts
 		fill 'black'
 		textSize 0.5*S
 		for i in range @values.length
-			ix = targets().values[i]
+			ix = Z.targets.values[i]
 			col = c ix
 			row = r ix
 			text @values[i], S/2+S*col, S/2+S*row+0.05*S
 	update : =>
-		@values.push count().value + 1
-		setCount new Count
+		@values.push Z.count.value + 1
+		Z.count = new Count
 
 class Knight
 	constructor : (@value) ->
@@ -46,8 +46,8 @@ class Knight
 
 class KnightHops
 	constructor :  ->
-		k = knight().value
-		ts = targets().values
+		k = Z.knight.value
+		ts = Z.targets.values
 		if k==-1 then return []
 		@values = []
 		col = c k
@@ -67,44 +67,45 @@ class KnightHops
 	click : =>
 		for index in @values
 			if inside index
-				setKnight new Knight index
-				setKnightHops new KnightHops
-				if index == target().value
-					counts().update()
-					target().update targets().values[counts().values.length+1]
-					if counts().values.length == targets().values.length-1 then setState new State 2
+				Z.knight = new Knight index
+				Z.knightHops = new KnightHops
+				if index == Z.target.value
+					Z.counts.update()
+					Z.target.update Z.targets.values[Z.counts.values.length+1]
+					if Z.counts.values.length == Z.targets.values.length-1 then Z.state = new State 2
 				else
-					count().update()
+					Z.count.update()
 
 class Queen
 	constructor : (@value) -> 
 	draw : =>
 		fill 'black'
 		text '♛', S/2+S*c(@value), S/2+S*r(@value)+0.1*S
-	click : => if inside @value then setState new State 0
+	click : => if inside @value then Z.state = new State 0
 
 class Queens
 	constructor : -> @values = _.filter range(N*N), (i) -> not NOQUEENS.includes i
 	draw : =>
 		fill 'black'
 		for i in @values
-			text '♛', S/2+S*c(i), S/2+S*r(i)
+			text '♛', S/2+S*c(i), S/2+S*r(i)+0.1*S
 	click : =>
 		for index in @values
 			if inside index
-				setCount new Count
-				setCounts new Counts
-				setQueen new Queen index
-				setQueenHops new QueenHops
-				setTargets new Targets
-				setKnight new Knight targets().values[counts().values.length]
-				setTarget new Target targets().values[counts().values.length+1]
-				setKnightHops new KnightHops
-				setState new State 1
+				Z.count = new Count
+				Z.counts = new Counts
+				Z.queen = new Queen index
+				Z.queenHops = new QueenHops
+				Z.targets  = new Targets
+				Z.knight = new Knight Z.targets.values[Z.counts.values.length]
+
+				Z.target = new Target Z.targets.values[Z.counts.values.length+1]
+				Z.knightHops = new KnightHops
+				Z.state = new State 1
 
 class QueenHops
 	constructor : ->
-		@queen =  queen().value
+		@queen =  Z.queen.value
 		f = (i) =>
 			ci = c i
 			ri = r i
@@ -117,7 +118,7 @@ class QueenHops
 	draw: =>
 		fill 'black'
 		for i in @values
-			if i != @queen then circle S/2+S*c(i), S/2+S*r(i), S/4 #, S/2
+			if i != @queen then circle S/2+S*c(i), S/2+S*r(i), S/4
 
 class State
 	constructor : (@value) ->
@@ -131,39 +132,40 @@ class Target
 		noFill()
 		circle S/2+S*c(@value), S/2+S*r(@value), S/2
 		pop()
-	update : () => @value = targets().values[counts().values.length+1]
+	update : () => @value = Z.targets.values[Z.counts.values.length+1]
 
 class Targets
-	constructor : -> @values = range(N*N).filter (i) => i not in queenHops().values
+	constructor : -> @values = range(N*N).filter (i) => i not in Z.queenHops.values
 
 inside = (index) ->
 	ci = c index
 	ri = r index
 	S*ci < mouseX < S*ci+S and S*ri < mouseY < S*ri+S
 
-[count,setCount] = signal new Count
-[counts,setCounts] = signal new Counts
-[state, setState] = signal new State 0
-[board, setBoard] = signal new Board
-[queen, setQueen] = signal new Queen 0
-[queens, setQueens] = signal new Queens
-[queenHops, setQueenHops] = signal new QueenHops
-[targets, setTargets] = signal new Targets
-[target, setTarget] = signal new Target targets().values[1]
-[knight, setKnight] = signal new Knight 34
-[knightHops, setKnightHops] = signal new KnightHops
+Z = {}
+Z.count = new Count
+Z.counts = new Counts
+Z.state = new State 0
+Z.board =  new Board
+Z.queen = new Queen 0
+Z.queens = new Queens
+Z.queenHops = new QueenHops
+Z.targets = new Targets
+Z.target = new Target Z.targets.values[1]
+Z.knight = new Knight 34
+Z.knightHops = new KnightHops
 
 rita = =>
 	background 'gray'
 	textSize 50
-	if state().value==0 then ops = [board,queens]
-	if state().value==1 then ops = [board,queen,queenHops,knight,target,counts,knightHops]
-	if state().value==2 then ops = [board,queen,queenHops,knight,counts]
-	op().draw() for op in ops
+	if Z.state.value==0 then ops = "board,queens".split ','
+	if Z.state.value==1 then ops = "board,queen,queenHops,knight,target,counts,knightHops".split ','
+	if Z.state.value==2 then ops = "board,queen,queenHops,knight,counts".split ','
+	Z[op].draw() for op in ops
 
 window.mousePressed = =>
 	start = new Date()
-	[queens,knightHops,queen][state().value]().click()
+	Z["queens,knightHops,queen".split(',')[Z.state.value]].click()
 	rita()
 	acc += new Date()-start
 	log acc
