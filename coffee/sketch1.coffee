@@ -11,6 +11,7 @@ N = 8
 r = (i) => i // N
 c = (i) => i % N
 NOQUEENS = [3,4,10,13,17,18,19,20,21,22,24,26,29,31,32,34,37,39,41,42,43,44,45,46,50,53,59,60]
+acc =0
 
 class Board
 	constructor : -> @values = _.map range(N*N), (i) => {i, ri:r(i), ci:c(i)}
@@ -161,8 +162,11 @@ rita = =>
 	op().draw() for op in ops
 
 window.mousePressed = =>
+	start = new Date()
 	[queens,knightHops,queen][state().value]().click()
 	rita()
+	acc += new Date()-start
+	log acc
 
 window.setup = =>
 	createCanvas innerWidth, innerHeight
@@ -170,12 +174,7 @@ window.setup = =>
 	textAlign CENTER, CENTER
 	rita()
 
-
-
-
-
-
-
+######################################
 
 # range = _.range
 # logg = console.log
