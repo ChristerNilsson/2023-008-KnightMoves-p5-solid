@@ -10,7 +10,7 @@ audio = new Audio 'shortclick.mp3'
 
 r = (i) => i // N
 c = (i) => i % N
-sum = (arr)	=> arr.reduce(((a, b) => a + b), 0)
+sum = (arr)	=> arr.reduce ((a, b) => a + b), 0
 
 class Board
 	constructor : -> @values = _.map range(N*N), (i) => {ri:r(i), ci:c(i)}
@@ -21,13 +21,18 @@ class Board
 			fill 'black'
 			textSize 0.5*S
 		for i in range N
-			text "abcdefgh"[i], mx+S/2+S*i, my+8.5*S
-			text "87654321"[i], mx-S/2, my+S/2+S*i
+			text "abcdefgh"[i], mx+S/2+S*i, my+8.4*S
+			text "87654321"[i], mx-0.4*S, my+S/2+S*i
+		if Z.state==0 then @info = "Click on a queen to start"
+		#if Z.state==2 then @info = "Click on the Queen to restart"
+		txts = @info.split '|'
+		for i in range txts.length
+			text txts[i], mx+4*S, my + 9.25*S + 0.5*S*i
 
 window.onresize = -> resize()
 
 resize = ->
-	H = min(innerHeight//10,innerWidth//10)
+	H = min(innerHeight//11,innerWidth//10)
 	W = H
 	S = W
 	mx = (innerWidth - 8*S)/2
@@ -46,7 +51,6 @@ class Counts
 		textSize 0.5*S
 		for i in range @values.length
 			drawText @values[i], Z.targets.values[i]
-		text sum(@values)+" moves in #{(new Date - Z.start)/1000} seconds", mx+4*S, my+9.25*S
 	update : =>
 		@values.push Z.count + 1
 		Z.count = 0
@@ -89,9 +93,15 @@ class KnightHops
 				if index == Z.target.value
 					Z.counts.update()
 					Z.target.update Z.targets.values[Z.counts.values.length+1]
-					if Z.counts.values.length == Z.targets.values.length-1 then Z.state = 2
+					if Z.counts.values.length == Z.targets.values.length-1
+						count = sum(Z.counts.values) + Z.count
+						Z.board.info = count + " moves in #{(new Date - Z.start)/1000} seconds|Click on the Queen to restart"
+						Z.state = 2
+						return
 				else
 					Z.count++
+				count = sum(Z.counts.values) + Z.count
+				Z.board.info = count + " moves in #{(new Date - Z.start)/1000} seconds"
 
 class Queen
 	constructor : (@value) ->
@@ -121,6 +131,7 @@ class Queens
 				Z.knightHops = new KnightHops
 				Z.state = 1
 				Z.start = new Date
+				Z.board.info = "Move the knight to the golden ring"
 
 class QueenHops
 	constructor : ->
@@ -162,9 +173,9 @@ inside = (index) ->
 
 Z = {} # object to hold global variables.
 Z.state = 0
-Z.count = 0 #new Count
+Z.count = 0
 Z.counts = new Counts
-Z.board =  new Board
+Z.board = new Board
 Z.queen = new Queen 0
 Z.queens = new Queens
 Z.queenHops = new QueenHops
@@ -176,9 +187,8 @@ Z.knightHops = new KnightHops
 rita = =>
 	background 'gray'
 	textSize S
-	if Z.state==0 then ops = "board,queens"
-	if Z.state==1 then ops = "board,queen,queenHops,knight,target,counts,knightHops"
-	if Z.state==2 then ops = "board,queen,queenHops,knight,counts"
+	opss="board,queens|board,queen,queenHops,knight,target,counts,knightHops|board,queen,queenHops,knight,counts"
+	ops = opss.split('|')[Z.state]
 	Z[op].draw() for op in ops.split ','
 
 window.mousePressed = =>
