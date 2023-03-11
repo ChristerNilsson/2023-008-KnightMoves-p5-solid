@@ -24,7 +24,6 @@ class Board
 			text "abcdefgh"[i], mx+S/2+S*i, my+8.4*S
 			text "87654321"[i], mx-0.4*S, my+S/2+S*i
 		if Z.state==0 then @info = "Click on a queen to start"
-		#if Z.state==2 then @info = "Click on the Queen to restart"
 		txts = @info.split '|'
 		for i in range txts.length
 			text txts[i], mx+4*S, my + 9.25*S + 0.5*S*i
@@ -197,6 +196,6 @@ window.mousePressed = =>
 
 window.setup = =>
 	createCanvas innerWidth, innerHeight
-	frameRate 1
+	#frameRate 1
 	textAlign CENTER, CENTER
 	resize()
